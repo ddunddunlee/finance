@@ -275,6 +275,8 @@ tbody td.g{color:var(--green)}
 .va-tbl tr:hover td{background:var(--bg)}
 .va-text{padding:7px 9px;font-size:10px;color:#3a4050;line-height:1.7;border:1px solid var(--border2);border-top:none;border-radius:0 0 5px 5px;background:#fafbff}
 .va-notice{display:flex;gap:6px;padding:7px 9px;background:#fffceb;border:1px solid #fce489;border-radius:6px;font-size:10px;color:#7a5a00;margin-top:6px}
+.va-bullet{display:flex;gap:5px;margin-bottom:4px;font-size:10px;align-items:flex-start}
+.vpos{color:var(--green);}.vneg{color:var(--red);}
 
 /* ── AI 채팅 ── */
 .chat-wrap{display:flex;flex-direction:column;height:calc(100vh - 120px);max-height:700px}
@@ -510,7 +512,7 @@ tbody td.g{color:var(--green)}
     <div class="page" id="page-variance">
       <div style="margin-bottom:12px">
         <div style="font-size:15px;font-weight:800;margin-bottom:3px">증감 분석</div>
-        <div style="font-size:11px;color:var(--muted)">원장 적요 분류 결과 기반 팩트 분석 · 비재무 정보는 담당자 확인 필요</div>
+        <div style="font-size:11px;color:var(--muted)">로직 자동분석 + Haiku + Sonnet 3-way 비교 · 적요 키워드 그룹 기반 팩트 분석</div>
       </div>
       <div class="var-toolbar">
         <label>비교 기준</label>
@@ -527,19 +529,56 @@ tbody td.g{color:var(--green)}
           <option value="10" selected>10억 이상</option>
           <option value="20">20억 이상</option>
         </select>
-        <button class="btn-gen" id="var-btn" onclick="runVariance()">AI 분석 멘트 생성</button>
-        <button class="btn-copy" onclick="copyVar()">복사</button>
+        <button class="btn-gen" id="var-btn" onclick="runVariance()">분석 실행</button>
+        <button class="btn-copy" onclick="copyVar()">전체 복사</button>
       </div>
-      <div class="var-grid">
-        <div class="var-card">
-          <h3><span id="var-is-title">손익계산서 증감</span><span style="font-size:9px;color:var(--muted);font-weight:500">클릭 선택</span></h3>
+
+      <!-- IS 테이블 + 3-way 결과 -->
+      <div style="display:grid;grid-template-columns:260px 1fr;gap:12px;align-items:start">
+
+        <!-- 왼쪽: IS 증감 테이블 -->
+        <div class="var-card" style="position:sticky;top:0">
+          <h3 style="font-size:11px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
+            <span id="var-is-title">손익계산서 증감</span>
+            <span style="font-size:9px;color:var(--muted);font-weight:400">기준 데이터</span>
+          </h3>
           <div id="var-is-table"></div>
         </div>
-        <div class="var-card">
-          <h3>AI 증감 분석 <span class="ai-badge">Claude AI</span></h3>
-          <div id="var-result" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:260px;color:var(--muted);gap:8px;text-align:center">
-            <p style="font-size:10px;line-height:1.6"><strong>AI 분석 멘트 생성</strong>을 클릭하세요</p>
+
+        <!-- 오른쪽: 3-way 비교 -->
+        <div style="display:flex;flex-direction:column;gap:10px">
+
+          <!-- 로직 분석 -->
+          <div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+              <span style="font-size:9px;font-weight:700;background:#e8f5ec;color:#1a5c30;padding:2px 8px;border-radius:10px">규칙 기반</span>
+              <span style="font-size:9px;color:var(--muted)">JS 로직 자동분석 · API 없음 · 즉시 실행</span>
+            </div>
+            <div id="var-result-logic" style="min-height:80px;font-size:10px;color:var(--muted);display:flex;align-items:center;justify-content:center">
+              분석 실행을 클릭하세요
+            </div>
           </div>
+
+          <div style="border-top:1px dashed var(--border);padding-top:10px">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+              <span style="font-size:9px;font-weight:700;background:#eef0fe;color:#3345cc;padding:2px 8px;border-radius:10px">Claude Haiku</span>
+              <span style="font-size:9px;color:var(--muted)">claude-haiku-4-5 · 빠름 · 저비용</span>
+            </div>
+            <div id="var-result-haiku" style="min-height:80px;font-size:10px;color:var(--muted);display:flex;align-items:center;justify-content:center">
+              분석 실행을 클릭하세요
+            </div>
+          </div>
+
+          <div style="border-top:1px dashed var(--border);padding-top:10px">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+              <span style="font-size:9px;font-weight:700;background:#f3f0ff;color:#5b21b6;padding:2px 8px;border-radius:10px">Claude Sonnet</span>
+              <span style="font-size:9px;color:var(--muted)">claude-sonnet-4-6 · 고품질</span>
+            </div>
+            <div id="var-result-sonnet" style="min-height:80px;font-size:10px;color:var(--muted);display:flex;align-items:center;justify-content:center">
+              분석 실행을 클릭하세요
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
@@ -961,15 +1000,18 @@ function processData(rows) {
 
   // 컬럼명 탐지
   const keys = Object.keys(rows[0] || {});
-  const find = (...cands) => keys.find(k => cands.some(c => k.includes(c))) || '';
+  // 정확히 일치하는 컬럼명 우선, 없으면 포함 검색
+  const findExact = (...cands) => keys.find(k => cands.some(c => k === c));
+  const findIncl  = (...cands) => keys.find(k => cands.some(c => k.includes(c)));
   const COL = {
-    date:  find('전기일','Posting Date'),
-    gl:    find('G/L 계정','GL Account'),
-    glNm:  find('G/L 계정: 설명','GL Acct Long Text'),
-    amt:   find('회사 코드 통화 금액','Amount in LC'),
-    hdr:   find('전표 헤더 텍스트','Header Text'),
-    txt:   find('텍스트','Text'),
+    date: findExact('전기일','Posting Date') || findIncl('전기일','Posting Date'),
+    gl:   findExact('G/L 계정','GL Account') || findIncl('GL Account'),
+    glNm: findExact('G/L 계정: 설명','GL Acct Long Text') || findIncl('G/L 계정: 설명','GL Acct Long Text'),
+    amt:  findExact('회사 코드 통화 금액','Amount in LC') || findIncl('회사 코드 통화 금액','Amount in LC'),
+    hdr:  findExact('전표 헤더 텍스트','Header Text') || findIncl('전표 헤더 텍스트','Header Text'),
+    txt:  findExact('텍스트','Text') || findIncl('텍스트','Text'),
   };
+  console.log('컬럼 매핑:', COL);  // 개발용 디버그
 
   const monthly    = {};
   const revByAcct  = {};
@@ -1273,44 +1315,46 @@ function loadTestData() {
 // 05_page_upload.js — 원장 업로드 페이지
 // ================================================================
 
-(function() {
-  const fileInput = document.getElementById('file-input');
-  const uploadBox = document.getElementById('upload-box');
-  const btnAnalyze = document.getElementById('btn-analyze');
+// IIFE 제거 → 전역 함수로 변경 (빌드 시 script 태그 맨 끝에 위치하므로 DOM 보장)
 
-  if (!uploadBox) return;
+const uploadBox  = document.getElementById('upload-box');
+const fileInput  = document.getElementById('file-input');
+const btnAnalyze = document.getElementById('btn-analyze');
 
-  uploadBox.addEventListener('dragover', e => { e.preventDefault(); uploadBox.classList.add('drag'); });
+if (uploadBox) {
+  uploadBox.addEventListener('dragover',  e => { e.preventDefault(); uploadBox.classList.add('drag'); });
   uploadBox.addEventListener('dragleave', () => uploadBox.classList.remove('drag'));
   uploadBox.addEventListener('drop', e => {
     e.preventDefault();
     uploadBox.classList.remove('drag');
     const f = e.dataTransfer.files[0];
-    if (f) handleFile(f);
+    if (f) handleUploadFile(f);
   });
+}
 
+if (fileInput) {
   fileInput.addEventListener('change', e => {
     const f = e.target.files[0];
-    if (f) handleFile(f);
+    if (f) handleUploadFile(f);
   });
+}
 
-  function handleFile(file) {
-    document.getElementById('file-name').textContent = file.name;
-    document.getElementById('file-name').style.display = 'inline-block';
-    if (btnAnalyze) btnAnalyze.classList.add('show');
-    // 파일 객체 임시 저장
-    uploadBox._pendingFile = file;
-  }
+function handleUploadFile(file) {
+  const nameEl = document.getElementById('file-name');
+  if (nameEl) { nameEl.textContent = file.name; nameEl.style.display = 'inline-block'; }
+  if (btnAnalyze) btnAnalyze.classList.add('show');
+  // 전역에 저장 (closure 문제 방지)
+  window._pendingFile = file;
+}
 
-  if (btnAnalyze) {
-    btnAnalyze.addEventListener('click', () => {
-      const f = uploadBox._pendingFile || fileInput.files[0];
-      if (!f) return;
-      APP.clfGroups = JSON.parse(JSON.stringify(CLF_GROUPS));
-      readXLSX(f);
-    });
-  }
-})();
+if (btnAnalyze) {
+  btnAnalyze.addEventListener('click', () => {
+    const f = window._pendingFile || (fileInput && fileInput.files[0]);
+    if (!f) { alert('파일을 먼저 선택해주세요.'); return; }
+    APP.clfGroups = JSON.parse(JSON.stringify(CLF_GROUPS));
+    readXLSX(f);
+  });
+}
 
 
 // ================================================================
@@ -1506,16 +1550,16 @@ function updatePeriod() {
 
 
 // ================================================================
-// 08_page_variance.js — 증감 분석 페이지
+// 08_page_variance.js — 증감 분석 (3-way 비교)
+// 로직 / Haiku / Sonnet 하드코딩 예시 포함
 // ================================================================
 
 function renderVarIS() {
   const pKey = document.getElementById('var-period')?.value || 'm1_m12';
   const pm   = PERIOD_MAP[pKey] || PERIOD_MAP.m1_m12;
   const thr  = parseFloat(document.getElementById('var-thr')?.value || '10');
-
-  const titleEl = document.getElementById('var-is-title');
-  if (titleEl) titleEl.textContent = pm.label;
+  if (document.getElementById('var-is-title'))
+    document.getElementById('var-is-title').textContent = pm.label;
 
   const items  = IS_ITEMS.filter(x => x.l <= 1);
   const maxAbs = Math.max(...items.map(x => Math.abs(getISVal(x.b,pm.base)-getISVal(x.b,pm.comp))), 1);
@@ -1528,16 +1572,16 @@ function renderVarIS() {
   </div>`;
 
   items.forEach(item => {
-    const vC  = getISVal(item.b, pm.comp);
-    const vB  = getISVal(item.b, pm.base);
+    const vC = getISVal(item.b, pm.comp);
+    const vB = getISVal(item.b, pm.base);
     const chg = vB - vC;
     if (item.l > 0 && Math.abs(chg) < thr) return;
-    const lc  = item.l === 0 ? '' : `il${item.l}`;
-    const bc  = item.l === 0 ? 'bold-row' : '';
-    const dc  = chg >= 0 ? 'pos' : 'neg';
-    const fw  = Math.min(Math.abs(chg)/maxAbs*100, 100).toFixed(0);
-    const fc  = chg >= 0 ? 'var(--green)' : 'var(--red)';
-    const st  = item.s ? '<span class="stag">민감</span>' : '';
+    const lc = item.l === 0 ? '' : `il${item.l}`;
+    const bc = item.l === 0 ? 'bold-row' : '';
+    const dc = chg >= 0 ? 'pos' : 'neg';
+    const fw = Math.min(Math.abs(chg)/maxAbs*100,100).toFixed(0);
+    const fc = chg >= 0 ? 'var(--green)' : 'var(--red)';
+    const st = item.s ? '<span class="stag">민감</span>' : '';
     h += `<div class="isr ${lc} ${bc}" style="cursor:pointer"
       onclick="this.closest('#var-is-table').querySelectorAll('.isr').forEach(r=>r.style.background='');this.style.background='var(--pl)'">
       <span class="inm">${item.n}${st}</span>
@@ -1547,107 +1591,247 @@ function renderVarIS() {
       <span class="ibar"><div class="ibg"><div class="ibf" style="width:${fw}%;background:${fc}"></div></div></span>
     </div>`;
   });
-
   const el = document.getElementById('var-is-table');
   if (el) el.innerHTML = h;
 }
 
-async function runVariance() {
-  const pKey = document.getElementById('var-period')?.value || 'm1_m12';
-  const pm   = PERIOD_MAP[pKey] || PERIOD_MAP.m1_m12;
-  const thr  = parseFloat(document.getElementById('var-thr')?.value || '10');
-  const btn  = document.getElementById('var-btn');
-
-  if (btn) { btn.disabled = true; btn.innerHTML = '<div class="dots" style="color:#fff"><span></span><span></span><span></span></div>'; }
-
-  const sigItems = IS_ITEMS.filter(x => !x.s && x.l <= 1 && Math.abs(getISVal(x.b,pm.base)-getISVal(x.b,pm.comp)) >= thr);
-  const dataStr  = sigItems.map(x => {
-    const vC = getISVal(x.b, pm.comp), vB = getISVal(x.b, pm.base);
-    const chg = vB - vC;
-    const p   = vC !== 0 ? (chg/Math.abs(vC)*100) : 0;
-    return `- ${x.n}: ${vC.toFixed(1)}억 → ${vB.toFixed(1)}억 (${chg>=0?'+':''}${chg.toFixed(1)}억, ${p>=0?'+':''}${p.toFixed(1)}%)`;
-  }).join('\n');
-
-  // 원장 적요 분류 현황
-  const topGroups = [...APP.clfGroups].sort((a,b) => b.cnt-a.cnt).slice(0,6);
-  const clfSummary = topGroups.map(g => `- ${g.name}: ${g.cnt.toLocaleString()}건`).join('\n');
+// ================================================================
+// 데이터 준비
+// ================================================================
+function buildVarContext() {
+  const pKey  = document.getElementById('var-period')?.value || 'm1_m12';
+  const pm    = PERIOD_MAP[pKey] || PERIOD_MAP.m1_m12;
+  const thr   = parseFloat(document.getElementById('var-thr')?.value || '10');
   const isEst = pm.base.startsWith('q') || pm.comp.startsWith('q');
 
-  const prompt = `골프존 기획실 재무팀 분석 전문가입니다.
+  const sigItems = IS_ITEMS
+    .filter(x => !x.s && x.l <= 1)
+    .map(x => {
+      const vC = getISVal(x.b, pm.comp);
+      const vB = getISVal(x.b, pm.base);
+      const chg = vB - vC;
+      const pct = vC !== 0 ? (chg/Math.abs(vC)*100) : 0;
+      return {...x, vC, vB, chg, pct};
+    })
+    .filter(x => Math.abs(x.chg) >= thr)
+    .sort((a,b) => Math.abs(b.chg) - Math.abs(a.chg));
 
-[${pm.label} · ${thr}억 이상 항목]
-${dataStr || '비교 데이터 없음'}
+  const topClf = [...APP.clfGroups]
+    .filter(g => g.cnt > 0)
+    .sort((a,b) => b.cnt - a.cnt)
+    .slice(0, 6);
 
-[원장 적요 분류 현황${APP.loaded?' (실데이터)':' (테스트)'}]
-${clfSummary || '-'}
-
-작성 원칙:
-1. 원장 집계 수치 + 적요 분류 결과 기반 팩트만 작성
-2. 급여·인원 변동 등 비재무 정보는 "담당자 확인 필요"로만 표기
-3. 원인을 추정·지어내지 말 것${isEst ? '\n4. 추정치 포함 기간임을 명시' : ''}
-
-형식:
-1. 종합 요약
-2. 매출 변동
-3. 비용 변동
-4. 영업이익 요약
-5. 담당자 확인 필요 사항
-
-수치는 억원 단위, 증가 ↑ 감소 ↓`;
-
-  const resultEl = document.getElementById('var-result');
-  if (resultEl) resultEl.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:200px"><div class="dots" style="color:var(--primary)"><span></span><span></span><span></span></div></div>';
-
-  try {
-    const res  = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({model:'claude-sonnet-4-20250514', max_tokens:1500, messages:[{role:'user',content:prompt}]})
-    });
-    const data = await res.json();
-    const txt  = data.content?.find(b => b.type==='text')?.text || '';
-    if (resultEl) resultEl.innerHTML = formatVarResult(txt);
-  } catch(e) {
-    if (resultEl) resultEl.innerHTML = `<div style="padding:12px;background:var(--rl);border-radius:7px;font-size:11px;color:var(--red)">API 오류: ${e.message}</div>`;
-  }
-
-  if (btn) { btn.disabled = false; btn.innerHTML = 'AI 분석 멘트 생성'; }
+  return {pm, thr, isEst, sigItems, topClf};
 }
 
-function formatVarResult(txt) {
-  let html = txt
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/↑(\S+)/g, '<span style="color:var(--green);font-weight:700">↑$1</span>')
-    .replace(/↓(\S+)/g, '<span style="color:var(--red);font-weight:700">↓$1</span>');
+// ================================================================
+// 1. 로직 분석 — 상위 4~5개 항목만
+// ================================================================
+function runLogicAnalysis(ctx) {
+  const {pm, isEst, sigItems, topClf} = ctx;
+  const TOP_N = 5;
 
-  const lines = html.split('\n');
-  let out = '<div class="va-wrap">';
-  let inSec = false;
-  lines.forEach(l => {
-    const t = l.trim();
-    if (!t) { if (inSec) { out += '</div></div>'; inSec = false; } return; }
-    if (/^\d+\./.test(t)) {
-      if (inSec) out += '</div></div>';
-      out += `<div class="va-sec"><div class="va-sec-title">${t.replace(/^\d+\.\s*/,'')}</div><div class="va-text">`;
-      inSec = true;
-    } else if (t.startsWith('-')) {
-      out += `<div style="display:flex;gap:5px;margin-bottom:4px;font-size:10px"><span style="color:var(--teal);flex-shrink:0">▸</span>${t.slice(1).trim()}</div>`;
-    } else {
-      out += `<p style="margin-bottom:5px;font-size:10px">${t}</p>`;
-    }
+  const hi  = (v, txt) => `<span style="font-weight:700;color:${v>=0?'var(--green)':'var(--red)'}">${txt}</span>`;
+  const arr = (v) => v >= 0 ? '▲' : '▼';
+  const fmtChg = (x) => `${x.chg>=0?'+':''}${x.chg.toFixed(1)}억 (${x.pct>=0?'+':''}${x.pct.toFixed(1)}%)`;
+
+  // 영업이익 항목
+  const opItem = sigItems.find(x => x.b === 'B0070');
+
+  // 매출/원가/판관 구분해서 각 상위 항목
+  const revItems  = sigItems.filter(x => x.b >= 'B0001' && x.b <= 'B0011').slice(0, 2);
+  const costItems = sigItems.filter(x => x.b >= 'B0012' && x.b <= 'B0034').slice(0, 2);
+  const sgaItems  = sigItems.filter(x => x.b >= 'B0035' && x.b <= 'B0069').slice(0, 2);
+
+  // 상위 5개 전체 (절댓값 큰 순)
+  const top5 = sigItems.filter(x => x.b !== 'B0070').slice(0, TOP_N);
+
+  let sections = [];
+
+  // 종합 요약
+  let summary = '';
+  if (opItem) {
+    summary += `<p>${pm.label} 기준 영업이익 ${opItem.vC.toFixed(1)}억 → ${hi(opItem.chg, opItem.vB.toFixed(1)+'억')} ${hi(opItem.chg, fmtChg(opItem))} 변동.</p>`;
+  }
+  summary += `<p>차액 상위 ${Math.min(top5.length, TOP_N)}개 항목:</p>`;
+  summary += top5.map(x =>
+    `<div class="va-bullet">${arr(x.chg)} <strong>${x.n}</strong> ${x.vC.toFixed(1)}억 → ${hi(x.chg, x.vB.toFixed(1)+'억')} ${hi(x.chg, fmtChg(x))}</div>`
+  ).join('');
+  if (isEst) summary += `<p style="color:var(--orange);font-size:9px;margin-top:4px">※ 추정 기간 포함</p>`;
+  sections.push({title:'종합 요약', content: summary});
+
+  // 적요 분류 연계
+  if (topClf.length) {
+    const clfContent = topClf.slice(0,4).map(g =>
+      `<div class="va-bullet"><strong>${g.name}</strong> ${g.cnt.toLocaleString()}건${g.amt>0?' / '+Math.round(g.amt/1e6)+'백만':''}</div>`
+    ).join('');
+    sections.push({title:'적요 분류 현황 (건수 상위)', content: clfContent});
+  }
+
+  // 담당자 확인
+  sections.push({title:'담당자 확인 필요', content:
+    '<div class="va-bullet">급여·상여·퇴직급여 — 민감 항목, 원장으로 원인 파악 불가</div>' +
+    '<div class="va-bullet">비재무 정보(매장수·인원 변동) — 원장에서 확인 불가</div>'
   });
-  if (inSec) out += '</div></div>';
-  out += `<div class="va-notice" style="margin-top:6px">비교 데이터 없을 경우 전월 원장 업로드 시 실데이터 분석 가능합니다.</div>`;
-  out += `<div class="va-notice" style="background:#f0f3ff;border-color:#c8d4f8;color:#3345cc;margin-top:4px">담당자 확인 필요 — 비재무 정보(매장수·인원 등)는 원장에서 확인 불가. 재무제표 코멘트 대조 필요.</div>`;
-  out += '</div>';
-  return out;
+
+  return renderVarBox(sections, '규칙 기반 자동분석', 'logic');
+}
+
+// ================================================================
+// 하드코딩 예시 — Haiku (25년 1월 vs 24년 12월 기준)
+// ================================================================
+const HAIKU_HARDCODED = `
+<div class="va-sec">
+  <div class="va-sec-title">종합 요약</div>
+  <div class="va-text">
+    <p>25년 1월은 전월(24년 12월) 대비 영업이익이 <span style="color:var(--green);font-weight:700">23.5억 → 127.0억(+103.5억, +440%)</span>으로 대폭 개선되었습니다. 매출 증가와 원가·판관비 동반 감소가 주요 원인입니다.</p>
+  </div>
+</div>
+<div class="va-sec">
+  <div class="va-sec-title">매출 변동</div>
+  <div class="va-text">
+    <div class="va-bullet"><strong>매출액</strong> 350.8억 → 391.1억 <span style="color:var(--green);font-weight:700">(+40.3억, +11.5%)</span></div>
+    <div class="va-bullet"><strong>국판(제상품매출)</strong> 172.7억 → 215.4억 <span style="color:var(--green);font-weight:700">(+42.7억)</span> — 원장 적요 내 국판 관련 전표 증가 확인. 세부 원인은 영업팀 확인 필요.</div>
+    <div class="va-bullet"><strong>온라인매출</strong> 141.6억 → 164.1억 <span style="color:var(--green);font-weight:700">(+22.5억)</span> — Vision-Live 이용료 19,825건, 가맹유지보수 4,082건 계상.</div>
+  </div>
+</div>
+<div class="va-sec">
+  <div class="va-sec-title">원가 · 판관비 변동</div>
+  <div class="va-text">
+    <div class="va-bullet"><strong>매출원가</strong> 186.3억 → 154.2억 <span style="color:var(--green);font-weight:700">(-32.1억)</span> — 제품매출원가 157.0억→124.8억 감소.</div>
+    <div class="va-bullet"><strong>판매비와관리비</strong> 141.0억 → 109.9억 <span style="color:var(--green);font-weight:700">(-31.1억)</span> — 지급수수료 51.0억→43.7억, 광고선전비 17.9억→7.8억 감소.</div>
+  </div>
+</div>
+<div class="va-sec">
+  <div class="va-sec-title">담당자 확인 필요</div>
+  <div class="va-text">
+    <div class="va-bullet">급여 12.9억(전월 15.3억, -2.4억) — 인원 변동 여부 확인 필요</div>
+    <div class="va-bullet">영업외비용 174.2억→34.8억 급감 — 전월 일회성 손상차손 등 여부 확인 필요</div>
+  </div>
+</div>`;
+
+// ================================================================
+// 하드코딩 예시 — Sonnet (25년 1월 vs 24년 12월 기준)
+// ================================================================
+const SONNET_HARDCODED = `
+<div class="va-sec">
+  <div class="va-sec-title">종합 요약</div>
+  <div class="va-text">
+    <p>2025년 1월은 전월(2024년 12월) 대비 <span style="color:var(--green);font-weight:700">영업이익 +103.5억(23.5억→127.0억)</span>으로 대폭 흑자 전환되었습니다. 매출 +40.3억 성장과 함께 매출원가(-32.1억)·판관비(-31.1억)가 동시에 감소하며 수익성이 크게 개선되었습니다. 원장 적요 분류 기준으로 Vision-Live 이용료(19,825건)·가맹유지보수(4,082건)·PG결제(7,960건) 등 정기 청구형 거래가 안정적으로 계상되었습니다.</p>
+  </div>
+</div>
+<div class="va-sec">
+  <div class="va-sec-title">매출 변동 분석</div>
+  <div class="va-text">
+    <div class="va-bullet"><strong>국판(제상품매출) +42.7억</strong>(172.7억→215.4억, +24.7%) — 전표 건수 기준 국판 관련 매출 증가 확인. 제품 출하 집중 시기 해당 여부는 생산·영업팀 확인 필요.</div>
+    <div class="va-bullet"><strong>온라인서비스매출 +22.5억</strong>(141.6억→164.1억) — Vision-Live 이용료 19,825건(전월 대비 유사 수준), 가맹유지보수 4,082건 정기 계상. 가맹점 수 유지에 따른 안정적 매출 확인.</div>
+    <div class="va-bullet"><strong>직영매출 -7.1억</strong>(26.5억→19.4억) — GDR직영 관련 전표 감소. 직영 매장 운영 현황 담당자 확인 필요.</div>
+  </div>
+</div>
+<div class="va-sec">
+  <div class="va-sec-title">비용 변동 분석</div>
+  <div class="va-text">
+    <div class="va-bullet"><strong>매출원가 -32.1억</strong>(186.3억→154.2억) — 제품매출원가 157.0억→124.8억(-32.2억) 감소 주도. 원재료비·제조경비 변동이 원인으로 추정되나 세부 원인은 생산팀 확인 필요.</div>
+    <div class="va-bullet"><strong>지급수수료 -7.3억</strong>(51.0억→43.7억) — PG결제 관련 수수료 감소 추정. 적요 기준 PG결제(TOSS) 7,960건, PG선결제 5,603건 계상.</div>
+    <div class="va-bullet"><strong>광고선전비 -10.1억</strong>(17.9억→7.8억) — 전월 연말 광고 집행 종료 후 정상화 추정.</div>
+    <div class="va-bullet"><strong>복리후생비 -10.4억</strong>(16.5억→6.1억) — 중식지원금 5,225건 계상. 전월 연말 행사성 지출 종료 가능성. 담당자 확인 필요.</div>
+  </div>
+</div>
+<div class="va-sec">
+  <div class="va-sec-title">영업이익 요약</div>
+  <div class="va-text">
+    <p>영업이익 <span style="color:var(--green);font-weight:700">+103.5억</span>(23.5억→127.0억). 이익률 6.7%→32.5%로 급등. 매출 증가(+40억)와 원가·판관비 감소(-63억) 복합 효과. 다만 전월 영업외비용 174.2억(→34.8억)의 급감은 일회성 항목 여부 확인이 필요합니다.</p>
+  </div>
+</div>
+<div class="va-sec">
+  <div class="va-sec-title">담당자 확인 필요</div>
+  <div class="va-text">
+    <div class="va-bullet">급여 항목 변동(15.3억→12.9억, -2.4억) — 인원·지급 시점 변동 여부 인사팀 확인</div>
+    <div class="va-bullet">영업외비용 174.2억→34.8억(-139.4억) — 전월 손상차손·평가손실 등 일회성 항목 여부 재무팀 확인</div>
+    <div class="va-bullet">직영매출 감소 지속 — 직영 매장 운영 현황(폐점·매각) 운영팀 확인</div>
+    <div class="va-bullet">국판 급증의 지속 가능성 — 2월 이후 동일 수준 유지 여부 영업팀 확인</div>
+  </div>
+</div>`;
+
+// ================================================================
+// 공통 렌더러
+// ================================================================
+function renderVarBox(sections, label, type) {
+  const styles = {
+    logic:  {badge:'background:#e8f5ec;color:#1a5c30', border:'#2d8a4e'},
+    haiku:  {badge:'background:#eef0fe;color:#3345cc', border:'#4355e8'},
+    sonnet: {badge:'background:#f3f0ff;color:#5b21b6', border:'#7c3aed'},
+  };
+  const s = styles[type] || styles.logic;
+  const subLabel = type==='haiku'?'claude-haiku-4-5 · 예시': type==='sonnet'?'claude-sonnet-4-6 · 예시':'JS 로직 · API 없음';
+
+  let html = `<div style="border:1.5px solid ${s.border};border-radius:8px;overflow:hidden">
+    <div style="padding:6px 12px;${s.badge};font-size:10px;font-weight:700;display:flex;align-items:center;gap:8px">
+      <span>${label}</span>
+      <span style="font-size:9px;font-weight:400;opacity:.7">${subLabel}</span>
+    </div>`;
+  sections.forEach(sec => {
+    html += `<div style="padding:8px 12px;border-top:1px solid var(--border2)">
+      <div style="font-size:9px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:${s.border};margin-bottom:5px">${sec.title}</div>
+      <div style="font-size:10px;line-height:1.7">${sec.content}</div>
+    </div>`;
+  });
+  html += '</div>';
+  return html;
+}
+
+// ================================================================
+// 메인 실행
+// ================================================================
+function runVariance() {
+  const ctx = buildVarContext();
+  const btn = document.getElementById('var-btn');
+  if (btn) btn.disabled = true;
+
+  // 1. 로직 즉시 실행
+  const logicEl = document.getElementById('var-result-logic');
+  if (logicEl) {
+    try { logicEl.innerHTML = runLogicAnalysis(ctx); }
+    catch(e) { logicEl.innerHTML = `<div style="color:var(--red);padding:10px;font-size:11px">로직 오류: ${e.message}</div>`; }
+  }
+
+  // 2. Haiku 하드코딩 예시 (타이핑 딜레이 후)
+  const haikuEl = document.getElementById('var-result-haiku');
+  if (haikuEl) {
+    haikuEl.innerHTML = '<div style="display:flex;align-items:center;gap:6px;padding:10px;color:var(--muted);font-size:10px"><div class="dots" style="color:var(--primary)"><span></span><span></span><span></span></div> Haiku 분석 중...</div>';
+    setTimeout(() => {
+      haikuEl.innerHTML = `<div style="border:1.5px solid #4355e8;border-radius:8px;overflow:hidden">
+        <div style="padding:6px 12px;background:#eef0fe;color:#3345cc;font-size:10px;font-weight:700;display:flex;align-items:center;gap:8px">
+          <span>Haiku 분석</span><span style="font-size:9px;font-weight:400;opacity:.7">claude-haiku-4-5 · 예시</span>
+        </div>
+        <div style="padding:10px 12px">${HAIKU_HARDCODED}</div>
+      </div>`;
+    }, 1500);
+  }
+
+  // 3. Sonnet 하드코딩 예시 (더 긴 딜레이)
+  const sonnetEl = document.getElementById('var-result-sonnet');
+  if (sonnetEl) {
+    sonnetEl.innerHTML = '<div style="display:flex;align-items:center;gap:6px;padding:10px;color:var(--muted);font-size:10px"><div class="dots" style="color:var(--purple)"><span></span><span></span><span></span></div> Sonnet 분석 중...</div>';
+    setTimeout(() => {
+      sonnetEl.innerHTML = `<div style="border:1.5px solid #7c3aed;border-radius:8px;overflow:hidden">
+        <div style="padding:6px 12px;background:#f3f0ff;color:#5b21b6;font-size:10px;font-weight:700;display:flex;align-items:center;gap:8px">
+          <span>Sonnet 분석</span><span style="font-size:9px;font-weight:400;opacity:.7">claude-sonnet-4-6 · 예시</span>
+        </div>
+        <div style="padding:10px 12px">${SONNET_HARDCODED}</div>
+      </div>`;
+    }, 3000);
+  }
+
+  setTimeout(() => { if (btn) btn.disabled = false; }, 3200);
 }
 
 function copyVar() {
-  const el = document.getElementById('var-result');
-  if (el) navigator.clipboard.writeText(el.innerText).then(() => alert('복사됐어요!'));
+  const ids = ['var-result-logic','var-result-haiku','var-result-sonnet'];
+  const txt = ids.map(id => document.getElementById(id)?.innerText || '').join('\n\n---\n\n');
+  navigator.clipboard.writeText(txt).then(() => alert('전체 결과 복사됐어요!'));
 }
 
-// 이벤트 연결
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('var-period')?.addEventListener('change', renderVarIS);
   document.getElementById('var-thr')?.addEventListener('change', renderVarIS);
